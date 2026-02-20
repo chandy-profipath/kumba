@@ -1,0 +1,7 @@
+{
+    "description": "Order #123",
+    "mobile": "0771234567",
+    "amount": 2.50,
+    "authemail": "user@gmail.com",
+    "method": "ecocash"
+}
