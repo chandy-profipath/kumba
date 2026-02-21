@@ -22,7 +22,9 @@ const paynow = new Paynow(
 );
 
 app.post('/pay', async (req, res) => {
-    console.log('Received payment request:', req.body);
+    console.log('--- Received Payment Request ---');
+    console.log('Body:', req.body);
+
     const { description, mobile, amount, authemail } = req.body;
 
     if (!description || !mobile || !amount || !authemail) {
@@ -36,10 +38,43 @@ app.post('/pay', async (req, res) => {
         const response = await paynow.sendMobile(payment, mobile, 'ecocash');
 
         if (response.success) {
+            console.log('Payment initiated successfully. pollUrl:', response.pollUrl);
+
+            // LONG POLLING: Wait for a final status (Paid or Cancelled)
+            let finalStatus = 'Sent';
+            let attempts = 0;
+            const maxAttempts = 30; // 30 attempts * 3s = 90 seconds max wait
+
+            while (attempts < maxAttempts) {
+                try {
+                    console.log(`Polling status (attempt ${attempts + 1}/${maxAttempts})...`);
+                    const status = await paynow.pollTransaction(response.pollUrl);
+
+                    if (status && status.status) {
+                        const currentStatus = status.status.toLowerCase();
+                        console.log('- Current Paynow Status:', status.status);
+
+                        // Check for final states
+                        if (currentStatus === 'paid' || currentStatus === 'cancelled') {
+                            finalStatus = status.status;
+                            break;
+                        }
+                    }
+                } catch (pollErr) {
+                    console.error('Error during polling attempt:', pollErr.message);
+                }
+
+                attempts++;
+                // Wait 3 seconds before next poll
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+
             res.json({
                 success: true,
+                status: finalStatus,
+                paid: finalStatus.toLowerCase() === 'paid',
                 pollUrl: response.pollUrl,
-                instructions: response.instructions || 'Please enter your PIN on your mobile device.'
+                instructions: response.instructions || (finalStatus === 'Sent' ? 'Poll timed out.' : `Transaction is ${finalStatus}`)
             });
         } else {
             console.log('Paynow Rejected:', response.error);
@@ -49,8 +84,11 @@ app.post('/pay', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Paynow Error:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('SERVER ERROR:', error);
+        res.status(500).json({
+            error: 'Internal Server Error',
+            message: error.message
+        });
     }
 });
 
@@ -63,7 +101,7 @@ app.get('/status', async (req, res) => {
     }
 
     try {
-        const status = await paynow.pollTransactionStatus(pollUrl);
+        const status = await paynow.pollTransaction(pollUrl);
         res.json(status);
     } catch (error) {
         console.error('Status Error:', error);
