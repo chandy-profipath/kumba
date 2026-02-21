@@ -1,5 +1,6 @@
 {
     "version": 2,
+    "outputDirectory": "public",
     "functions": {
         "api/pay.js": {
             "memory": 128,
@@ -9,5 +10,19 @@
             "memory": 128,
             "maxDuration": 30
         }
-    }
+    },
+    "routes": [
+        {
+            "src": "/api/pay",
+            "dest": "/api/pay.js"
+        },
+        {
+            "src": "/api/status",
+            "dest": "/api/status.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
+        }
+    ]
 }
