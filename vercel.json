@@ -1,0 +1,13 @@
+{
+    "version": 2,
+    "functions": {
+        "api/pay.js": {
+            "memory": 128,
+            "maxDuration": 30
+        },
+        "api/status.js": {
+            "memory": 128,
+            "maxDuration": 30
+        }
+    }
+}
